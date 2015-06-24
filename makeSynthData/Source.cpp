@@ -3,15 +3,17 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <fstream>
 
 /*截圖用*/
 #include <Windows.h>
 #include <time.h>
+
 using namespace std;
 
 GLfloat tri_v[3][2] = {{-1.0f, -0.58f}, {1.0f, -0.58f}, {0.0f, 1.15f}};
 
-int winWidth, winHeight;
+int winWidth = 600, winHeight = 600;
 
 int timer_flag = 1;
 
@@ -26,15 +28,16 @@ float translate_x = 0.0f, translate_y = 0.0f, translate_z = 0.0f;
 
 //Lighting parameters
 
-GLfloat ambientLight[] = { 0.228837f, 0.228837f, 0.228837f, 1.0f };
-GLfloat diffuseLight[] = { 0.563621f, 0.563621f, 0.563621f, 1.0f };
+GLfloat ambientLight[] = { 0.1f, 0.1f, 0.1f, 1.0f };
+GLfloat diffuseLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 GLfloat specular[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-GLfloat normal_z[] = { -0.0051583f, 0.0259225f, 0.999651f};
-GLfloat normal_y[] = { 0.0833728f, -0.99642f, 0.0140081f};
+GLfloat normal_z[] = { 0.0f, 0.0f, 1.0f};
+GLfloat normal_y[] = { 0.0f, -1.0f, 0.0f};
 GLfloat normal_x[] = { 1.0f, 0.0f, 0.0f};
-GLfloat pos[]={0.79057f, -5.79939f, 12.6918f, 1.0f};
+GLfloat pos[]={0.0f, 0.0f, 0.0f, 1.0f};
 float sideLength = 500.0f;
 float markSideLength = 20.0f;
+int num_plane = 0;
 
 TracBall myTrackBall;
 
@@ -45,6 +48,8 @@ void SaveScreenShot();
 void InitGL(void);
 void drawPlane(double w, double h, int sides, double nx, double ny, double nz);
 void drawVerticalPlane(double w, double h, int sides, double nx, double ny, double nz);
+/*讀入參數*/
+void loadConfig(string path);
 
 
 void My_Reshape(int w, int h)
@@ -96,8 +101,11 @@ void My_Display(void)
 	glLoadIdentity();
 	
 	/// Setup the viewing camera
-	gluLookAt(-30.0, -30.0,80.0, 
-		      10.0, markSideLength, 0.0, 
+	/*gluLookAt(60.0, -60.0,70.0, 
+		      -10.0, markSideLength, 0.0, 
+			  0.0, 1.0, 0.0);*/
+	gluLookAt(-10.0, -20.0, 100.0, 
+		     10.0, markSideLength, 0.0, 
 			  0.0, 1.0, 0.0);
 
 	//Translation
@@ -121,10 +129,6 @@ void My_Display(void)
 			glColor3f(1.0f, 1.0f, 1.0f);
 			drawPlane(sideLength, sideLength, 300, normal_z[0], normal_z[1], normal_z[2]);
 
-			/* y=markerLen plane */
-			glColor3f(1.0f, 1.0f, 1.0f);
-			//glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
-			drawVerticalPlane(sideLength, sideLength, 300, normal_y[0], normal_y[1], normal_y[2]);
 			
 			/* reference quad */
 			glPushMatrix();	
@@ -138,16 +142,24 @@ void My_Display(void)
 			glEnd();
 			glPopMatrix();
 			
-			glPushMatrix();	
-			glBegin(GL_LINE_LOOP);
-				glColor3f(0.0f, 0.0f, 0.0f);
-				glLineWidth(10.0f);
-				glVertex3f(-markSideLength, markSideLength, markSideLength*2);
-				glVertex3f(markSideLength, markSideLength, markSideLength*2);
-				glVertex3f(markSideLength, markSideLength, 0.0);
-				glVertex3f(-markSideLength, markSideLength, 0.0);
-			glEnd();
-			glPopMatrix();
+			if(num_plane >=2){
+				/* y=markerLen plane */
+				glColor3f(1.0f, 1.0f, 1.0f);
+				//glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
+				drawVerticalPlane(sideLength, sideLength, 300, normal_y[0], normal_y[1], normal_y[2]);
+				glPushMatrix();	
+			
+				/* reference quad */
+				glBegin(GL_LINE_LOOP);
+					glColor3f(0.0f, 0.0f, 0.0f);
+					glLineWidth(10.0f);
+					glVertex3f(-markSideLength, markSideLength, markSideLength*2);
+					glVertex3f(markSideLength, markSideLength, markSideLength*2);
+					glVertex3f(markSideLength, markSideLength, 0.0);
+					glVertex3f(-markSideLength, markSideLength, 0.0);
+				glEnd();
+				glPopMatrix();
+			}
 
 			break;
 		case 2:
@@ -350,7 +362,7 @@ void menu_lvl1_func(int value)
 
 void My_Menu()
 {
-	int menu_main, menu_lvl1, menu_lvl2;
+	int menu_main, menu_lvl1;
 
 	menu_main = glutCreateMenu(menu_main_func);
 	menu_lvl1 = glutCreateMenu(menu_lvl1_func);	
@@ -373,11 +385,16 @@ void My_Menu()
 
 int main(int argc, char* argv[])
 {
+	if(argc > 1)
+		loadConfig(argv[1]);
+	else
+		loadConfig("config");
+
 	// create a window
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
 	glutInitWindowPosition(500, 100);
-	glutInitWindowSize(600, 600);
+	glutInitWindowSize(winWidth, winHeight);
 	glutCreateWindow("Lighting Test");
 
 	//Register callback functions
@@ -428,7 +445,7 @@ BOOL WriteBitmapFile(char * filename,int width,int height,unsigned char * bitmap
 	//////////////////////////////////////////////////////////////////////////
 	FILE * filePtr;			
 	unsigned char tempRGB;	
-	int imageIdx;
+	unsigned int imageIdx;
 
 	for (imageIdx = 0;imageIdx < bitmapInfoHeader.biSizeImage;imageIdx +=3)
 	{
@@ -458,10 +475,10 @@ void SaveScreenShot()
 	//int clnWidth,clnHeight;	//client width and height
 	static void * screenData;
 	//RECT rc;
-	int len = 600 * 600 * 3;
+	int len = winWidth * winHeight * 3;
 	screenData = malloc(len);
 	memset(screenData,0,len);
-	glReadPixels(0, 0, 600, 600, GL_RGB, GL_UNSIGNED_BYTE, screenData);
+	glReadPixels(0, 0, winWidth, winHeight, GL_RGB, GL_UNSIGNED_BYTE, screenData);
 
 	time_t t = time(0);
 	struct tm now;
@@ -470,7 +487,7 @@ void SaveScreenShot()
 	sprintf_s(lpstrFilename,sizeof(lpstrFilename),"%d.%d.%d.bmp",now.tm_hour, now.tm_min, now.tm_sec);
 	cout<<"save the screen shot at\n"<<lpstrFilename<<endl;
 
-	WriteBitmapFile(lpstrFilename,600,600,(unsigned char*)screenData);
+	WriteBitmapFile(lpstrFilename,winWidth,winHeight,(unsigned char*)screenData);
 	
 	free(screenData);
 
@@ -512,4 +529,56 @@ void drawVerticalPlane(double w, double h, int sides, double nx, double ny, doub
 		}
 	}
 	glPopMatrix();
+}
+
+void loadConfig(string path)
+{
+	/**
+		line 1 NUM_MARKER
+		line 2 ambient
+		line 3 diffuse
+		line 4 normal 1[3]
+		line 5 normal 2[3]
+		line 6 light postion[3]
+	**/
+
+	ifstream fin(path);
+	if(!fin.is_open()){
+		cout<<"Unable to open file: "<<path<<endl;
+		exit(0);
+	}
+	string str_num, str_a, str_d, str_n[3], str_lp[3];
+	
+	/* num_marker ambient diffuse */
+	fin >> str_num >> str_a >> str_d;
+	num_plane = stoi(str_num);
+	if(num_plane<1){
+		cout<<"bad argument.(NUM_MARKER)"<<endl;
+		exit(0);
+	}
+
+	for(int i=0;i<3;i++){
+		ambientLight[i] = stod(str_a);
+		diffuseLight[i] = stod(str_d);
+	}
+
+	/* plane normal */
+	fin >> str_n[0] >> str_n[1] >> str_n[2];
+	for(int i=0;i<3;i++)
+		normal_z[i] = stod(str_n[i]);
+	
+	if(num_plane >= 2){
+		fin >> str_n[0] >> str_n[1] >> str_n[2];
+		for(int i=0;i<3;i++)
+			normal_y[i] = stod(str_n[i]);
+	}
+
+
+	/* light position */
+	fin >> str_lp[0] >> str_lp[1] >> str_lp[2];
+	for(int i=0;i<3;i++)
+		pos[i] = stod(str_lp[i]);
+
+
+	fin.close();
 }
